@@ -1,4 +1,4 @@
-// Client library for the OpenWeatherMap datapoint server
+// Client library for the OpenWeatherMap data-point server
 // https://openweathermap.org/
 
 // The API server uses https, so a client library with secure support is needed
@@ -7,7 +7,6 @@
 // This is a beta test version and is subject to change!
 
 // See license.txt in root folder of library
-// iconList[] ndex default
 
 #define MAX_ICON_INDEX 11 // Maximum for weather icon index
 #define ICON_RAIN 1       // Index for the rain icon bitmap (bmp file)
@@ -39,7 +38,7 @@ class OW_Weather: public JsonListener {
   private: // Streaming parser callback functions, allow tracking and decisions
 
     void startDocument(); // JSON document has started, typically starts once
-                          // Initialises varaibles used, e.g. sets objectLayer = 0
+                          // Initialises variables used, e.g. sets objectLayer = 0
                           // and arrayIndex =0
     void endDocument();   // JSON document has ended, typically ends once
 

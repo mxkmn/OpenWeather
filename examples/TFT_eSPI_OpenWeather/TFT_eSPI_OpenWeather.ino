@@ -14,7 +14,7 @@
 //  Original by Daniel Eichhorn, see license at end of file.
 
 //#define SERIAL_MESSAGES // For serial output weather reports
-//#define SCREEN_SERVER   // For dumping screentshots from TFT
+//#define SCREEN_SERVER   // For dumping screen shots from TFT
 //#define RANDOM_LOCATION // Test only, selects random weather location every refresh
 //#define FORMAT_SPIFFS   // Wipe SPIFFS and all files!
 
@@ -24,7 +24,7 @@
 
 // A processing sketch to create new fonts can be found in the Tools folder of TFT_eSPI
 // https://github.com/Bodmer/TFT_eSPI/tree/master/Tools/Create_Smooth_Font/Create_font
-// New fonts can be generated to include language specifc characters. The Noto family
+// New fonts can be generated to include language specific characters. The Noto family
 // of fonts has an extensive character set coverage.
 
 // Json streaming parser (do not use IDE library manager version) to use is here:
@@ -51,7 +51,7 @@
 #endif
 
 
-// check settings.h for adapting to your needs
+// check All_Settings.h for adapting to your needs
 #include "All_Settings.h"
 
 #include <JSON_Decoder.h> // https://github.com/Bodmer/JSON_Decoder
@@ -66,7 +66,7 @@
 
 TFT_eSPI tft = TFT_eSPI();             // Invoke custom library
 
-OW_Weather ow;      // Weather forcast library instance
+OW_Weather ow;      // Weather forecast library instance
 
 OW_current *current; // Pointers to structs that temporarily holds weather data
 OW_hourly  *hourly;  // Not used
@@ -141,8 +141,6 @@ void setup() {
   tft.drawString("Connecting to WiFi", 120, 240);
   tft.setTextPadding(240); // Pad next drawString() text to full width to over-write old text
 
-  //Manual Wifi connection
-  //WiFi.mode(WIFI_STA); // Needed?
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -155,7 +153,6 @@ void setup() {
   tft.setTextPadding(240); // Pad next drawString() text to full width to over-write old text
   tft.drawString(" ", 120, 220);  // Clear line above using set padding width
   tft.drawString("Fetching weather data...", 120, 240);
-  //delay(500);
 
   // Fetch the time
   udp.begin(localPort);
@@ -199,7 +196,7 @@ void loop() {
 /***************************************************************************************
 **                          Fetch the weather data  and update screen
 ***************************************************************************************/
-// Update the internet based information and update screen
+// Update the Internet based information and update screen
 void updateData() {
   // booted = true;  // Test only
   // booted = false; // Test only
@@ -242,8 +239,6 @@ void updateData() {
     fillSegment(22, 22, 0, 360, 22, TFT_BLACK);
   }
 
-  //tft.fillScreen(TFT_CYAN); // For text padding and update graphics zone checking only
-
   if (parsed)
   {
     drawCurrentWeather();
@@ -252,7 +247,7 @@ void updateData() {
 
     tft.unloadFont();
 
-    // Update the temperature here so we dont need keep
+    // Update the temperature here so we don't need to keep
     // loading and unloading font which takes time
     tft.loadFont(AA_FONT_LARGE);
     tft.setTextDatum(TR_DATUM);
@@ -369,7 +364,6 @@ void drawCurrentWeather() {
   tft.setTextColor(TFT_ORANGE, TFT_BLACK);
   weatherText = (uint16_t)current->wind_speed;
 
-  // TODO: check if this works correctly
   if (units == "metric") weatherText += " m/s";
   else weatherText += " mph";
 
@@ -409,7 +403,7 @@ void drawCurrentWeather() {
 // draws the three forecast columns
 void drawForecast() {
   int8_t dayIndex = 1;
-  //while ((daily->dt[dayIndex] < (current->dt - 12*60*60UL)) && (dayIndex < (MAX_DAYS - 4))) dayIndex++;
+
   drawForecastDetail(  8, 171, dayIndex++);
   drawForecastDetail( 66, 171, dayIndex++); // was 95
   drawForecastDetail(124, 171, dayIndex++); // was 180
@@ -483,11 +477,6 @@ void drawAstronomy() {
   String setting = strTime(current->sunset) + " ";
   dt = rightOffset(setting, ":");
   tft.drawString(setting, 40 + dt, 305);
-
-  /* OpenWeather does not provide Moon phase, rise and setting times
-     There are other free API providers to try, maybe:
-     http://api.usno.navy.mil/rstt/oneday?date=1/5/2005&loc=Los%20Angeles,%20CA
-  */
 
   tft.setTextDatum(BC_DATUM);
   tft.setTextColor(TFT_ORANGE, TFT_BLACK);
@@ -622,7 +611,7 @@ void fillSegment(int x, int y, int start_angle, int sub_angle, int r, unsigned i
 
     tft.fillTriangle(x1, y1, x2, y2, x, y, colour);
 
-    // Copy segment end to sgement start for next segment
+    // Copy segment end to segment start for next segment
     x1 = x2;
     y1 = y2;
   }
@@ -640,7 +629,6 @@ void printWeather(void)
   Serial.print("dt (time)          : "); Serial.println(strDate(current->dt));
   Serial.print("sunrise            : "); Serial.println(strDate(current->sunrise));
   Serial.print("sunset             : "); Serial.println(strDate(current->sunset));
-//Serial.print("Moon phase         : "); Serial.println(current->moonPhase);
   Serial.print("main               : "); Serial.println(current->main);
   Serial.print("temp               : "); Serial.println(current->temp);
   Serial.print("humidity           : "); Serial.println(current->humidity);
@@ -666,7 +654,7 @@ void printWeather(void)
 #endif
 }
 /***************************************************************************************
-**             Convert unix time to a "local time" time string "12:34"
+**             Convert Unix time to a "local time" time string "12:34"
 ***************************************************************************************/
 String strTime(time_t unixTime)
 {
@@ -684,7 +672,7 @@ String strTime(time_t unixTime)
 }
 
 /***************************************************************************************
-**  Convert unix time to a local date + time string "Oct 16 17:18", ends with newline
+**  Convert Unix time to a local date + time string "Oct 16 17:18", ends with newline
 ***************************************************************************************/
 String strDate(time_t unixTime)
 {
@@ -737,7 +725,7 @@ String strDate(time_t unixTime)
 //  Created and added new 100x100 and 50x50 pixel weather icons, these are in the
 //  sketch data folder, press Ctrl+K to view
 //  Add moon icons, eliminate all downloads of icons (may lose server!)
-//  Addapted to use anti-aliased fonts, tweaked coords
+//  Adapted to use anti-aliased fonts, tweaked coords
 //  Added forecast for 4th day
 //  Added cloud cover and humidity in lieu of Moon rise/set
 //  Adapted to be compatible with ESP32

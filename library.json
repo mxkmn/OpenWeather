@@ -1,7 +1,7 @@
 {
   "name": "OpenWeather",
-  "version": "0.1.4",
-  "keywords": "weather, TFT_eSPI, tft, display, ESP8266, NodeMCU, ESP32, M5Stack, ILI9341, ILI9486, ILI9488",
+  "version": "0.1.5",
+  "keywords": "weather, TFT_eSPI, tft, display, ESP8266, NodeMCU, ESP32, M5Stack, ILI9341",
   "description": "OpenWeather API client for ESP8266 and ESP32",
   "repository":
   {

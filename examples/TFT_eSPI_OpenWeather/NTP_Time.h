@@ -4,14 +4,10 @@
 
 // Time library:
 // https://github.com/PaulStoffregen/Time
-
 #include <Time.h>
 
 // Time zone correction library:
 // https://github.com/JChristensen/Timezone
-
-// TODO: Use time zone correction in JSON reply from Dark Sky
-
 #include <Timezone.h>
 
 // Libraries built into IDE

@@ -1,4 +1,4 @@
-// Client library for the OpenWeather datapoint server
+// Client library for the OpenWeather data-point server
 // https://openweathermap.org/
 
 // Created by Bodmer 9/4/2020
@@ -58,8 +58,8 @@ bool OW_Weather::getForecast(OW_current *current, OW_hourly *hourly, OW_daily *d
 }
 
 /***************************************************************************************
-** Function name:           getForecast
-** Description:             Setup the weather forecast request
+** Function name:           partialDataSet
+** Description:             Set requested data set to partial (true) or full (false)
 ***************************************************************************************/
 void OW_Weather::partialDataSet(bool partialSet) {
   
@@ -153,7 +153,7 @@ bool OW_Weather::parseRequest(String url) {
 
   client.stop();
   
-  // A message has been parsed but the datapoint correctness is unknown
+  // A message has been parsed but the data-point correctness is unknown
   return parseOK;
 }
 
@@ -245,7 +245,7 @@ bool OW_Weather::parseRequest(String url) {
 
   client.stop();
   
-  // A message has been parsed without error but the datapoint correctness is unknown
+  // A message has been parsed without error but the data-point correctness is unknown
   return parseOK;
 }
 

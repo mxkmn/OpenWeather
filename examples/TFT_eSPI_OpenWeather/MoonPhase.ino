@@ -1,5 +1,5 @@
-/* Moon phase calculation */
-// Adapted from code here:
+/* Moon phase calculation for OpenWeather library*/
+// Adapted by Bodmer from code here:
 // http://www.voidware.com/moon_phase.htm
 
 #include <stdio.h>
