@@ -22,7 +22,7 @@
 
 
 // Check and correct bad setting
-#if (MAX_NOURS > 48) || (MAX_HOURS < 1)
+#if (MAX_HOURS > 48) || (MAX_HOURS < 1)
   #undef  MAX_HOURS
   #define MAX_HOURS 48 // Ignore compiler warning!
 #endif
