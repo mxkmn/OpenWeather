@@ -143,6 +143,7 @@ void printCurrentWeather()
     Serial.print("main             : "); Serial.println(hourly->main[i]);
     Serial.print("description      : "); Serial.println(hourly->description[i]);
     Serial.print("icon             : "); Serial.println(hourly->icon[i]);
+    Serial.print("pop              : "); Serial.println(hourly->pop[i]);
 
     Serial.println();
   }
@@ -184,6 +185,7 @@ void printCurrentWeather()
     Serial.print("main             : "); Serial.println(daily->main[i]);
     Serial.print("description      : "); Serial.println(daily->description[i]);
     Serial.print("icon             : "); Serial.println(daily->icon[i]);
+    Serial.print("pop              : "); Serial.println(daily->pop[i]);
 
     Serial.println();
   }

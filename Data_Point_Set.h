@@ -70,7 +70,7 @@ typedef struct OW_hourly {
   String   main[MAX_HOURS];
   String   description[MAX_HOURS];
   String   icon[MAX_HOURS];
-
+  float    pop[MAX_HOURS];
 } OW_hourly;
 
 /***************************************************************************************
@@ -116,6 +116,7 @@ typedef struct OW_daily {
   String   main[MAX_DAYS];
   String   description[MAX_DAYS];
   String   icon[MAX_DAYS];
+  float    pop[MAX_DAYS];
 
 } OW_daily;
 

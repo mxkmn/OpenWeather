@@ -451,6 +451,8 @@ void OW_Weather::fullDataSet(const char *val) {
     if (currentKey == "description") hourly->description[arrayIndex] = value;
     else
     if (currentKey == "icon") hourly->icon[arrayIndex] = value;
+    else
+    if (currentKey == "pop") hourly->pop[arrayIndex] = value.toFloat();
 
     return;
   }
@@ -494,6 +496,8 @@ void OW_Weather::fullDataSet(const char *val) {
     if (currentKey == "description") daily->description[arrayIndex] = value;
     else
     if (currentKey == "icon") daily->icon[arrayIndex] = value;
+    else
+    if (currentKey == "pop") daily->pop[arrayIndex] = value.toFloat();
 
     if (currentSet == "temp") {
       if (currentKey == "morn") daily->temp_morn[arrayIndex] = value.toFloat();
