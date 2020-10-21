@@ -44,7 +44,13 @@ bool OW_Weather::getForecast(OW_current *current, OW_hourly *hourly, OW_daily *d
   this->hourly   = hourly;
   this->daily    = daily;
 
-  String url = "https://api.openweathermap.org/data/2.5/onecall?lat=" + latitude + "&lon=" + longitude + "&units=" + units + "&lang=" + language + "&appid=" + api_key;
+  // Exclude some info by passing fn a NULL pointer to reduce memory needed
+  String exclude = "";
+  if (!current)  exclude += "current,";
+  if (!hourly)   exclude += "hourly,";
+  if (!daily)    exclude += "daily,";
+
+  String url = "https://api.openweathermap.org/data/2.5/onecall?lat=" + latitude + "&lon=" + longitude + "&exclude=minutely," + exclude + "&units=" + units + "&lang=" + language + "&appid=" + api_key;
 
   // Send GET request and feed the parser
   bool result = parseRequest(url);
@@ -363,7 +369,9 @@ void OW_Weather::fullDataSet(const char *val) {
 
   // Start of JSON
   if (currentParent == "") {
-    if (currentKey == "timezone") current->timezone = value;
+    if (currentKey == "lat") lat = value.toFloat();
+    if (currentKey == "lon") lon = value.toFloat();
+    if (currentKey == "timezone") timezone = value;
   }
 
   // Current forecast - no array index - short path

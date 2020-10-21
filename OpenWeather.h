@@ -35,6 +35,10 @@ class OW_Weather: public JsonListener {
 
     void partialDataSet(bool partialSet);
 
+    float    lat = 0;
+    float    lon = 0;
+    String   timezone = "";
+
   private: // Streaming parser callback functions, allow tracking and decisions
 
     void startDocument(); // JSON document has started, typically starts once

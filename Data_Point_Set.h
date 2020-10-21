@@ -11,14 +11,10 @@
 
 // The content is zero or "" when first created.
 
-// Structures for full set of values
 /***************************************************************************************
 ** Description:   Structure for current weather
 ***************************************************************************************/
 typedef struct OW_current {
-  float    lat = 0;
-  float    lon = 0;
-  String   timezone;
 
   // current
   uint32_t dt = 0;
