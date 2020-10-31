@@ -321,6 +321,7 @@ void drawTime() {
 ***************************************************************************************/
 void drawCurrentWeather() {
   String date = "Updated: " + strDate(current->dt);
+  String weatherText = "None";
 
   tft.setTextDatum(BC_DATUM);
   tft.setTextColor(TFT_ORANGE, TFT_BLACK);
@@ -339,7 +340,10 @@ void drawCurrentWeather() {
   //Serial.print("Icon draw time = "); Serial.println(millis()-dt);
 
   // Weather Text
-  String weatherText = current->main;
+  if (language == "en")
+    weatherText = current->main;
+  else
+    weatherText = current->description;
 
   tft.setTextDatum(BR_DATUM);
   tft.setTextColor(TFT_ORANGE, TFT_BLACK);

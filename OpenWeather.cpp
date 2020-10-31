@@ -583,8 +583,8 @@ void OW_Weather::partialDataSet(const char *val) {
     if (currentKey == "id") current->id = value.toInt();
     else
     if (currentKey == "main") current->main = value;
-    //else
-    //if (currentKey == "description") current->description = value;
+    else
+    if (currentKey == "description") current->description = value;
     //else
     //if (currentKey == "icon") current->icon = value;
 
