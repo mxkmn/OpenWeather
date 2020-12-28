@@ -28,7 +28,7 @@ class OW_Weather: public JsonListener {
     // Sketch calls this forecast request, it returns true if no parse errors encountered
     bool getForecast(OW_current *current, OW_hourly *hourly, OW_daily  *daily,
                      String api_key, String latitude, String longitude,
-                     String units, String language);
+                     String units = "metric", String language = "en", String api_type = "onecall");
 
     // Called by library (or user sketch), sends a GET request to a https (secure) url
     bool parseRequest(String url); // and parses response, returns true if no parse errors
@@ -38,6 +38,7 @@ class OW_Weather: public JsonListener {
     float    lat = 0;
     float    lon = 0;
     String   timezone = "";
+    uint32_t timezone_offset = 0;
 
   private: // Streaming parser callback functions, allow tracking and decisions
 
@@ -71,6 +72,7 @@ class OW_Weather: public JsonListener {
 
     uint16_t hourly_index;   // index into the OW_hourly structure's data arrays
     uint16_t daily_index;    // index into the OW_daily structure's data arrays
+    uint8_t api_id;          // ID of API type (1 is One Call API, 2 is Current weather data)
 
     // The value storage structures are created and deleted by the sketch and
     // a pointer passed via the library getForecast() call the value() function
