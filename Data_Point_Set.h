@@ -6,7 +6,7 @@
 // request a subset of the full weather report but this library grabs all values with
 // one GET request to avoid exceeding the 1000 free request count per day (count reset
 // at 00:00 UTC). 1000 per day means ~40 per hour. As the weather forecast changes slowly
-// the example requests the forecast every 2 minutes, so adapting to reduce memory
+// the example requests the forecast every 125 seconds, so adapting to reduce memory
 // by requesting current, daily, hourly etc forescasts individually can be done.
 
 // The content is zero or "" when first created.
