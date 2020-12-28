@@ -5,8 +5,8 @@
 // Some structs contain arrays so watch out for memory consumption. You can
 // request a subset of the full weather report but this library grabs all values with
 // one GET request to avoid exceeding the 1000 free request count per day (count reset
-// at 00:00 UTC). 1000 per day means ~40 per hour. As the weather forcast changes slowly
-// the example requests the forecast every 15 minutes, so adapting to reduce memory
+// at 00:00 UTC). 1000 per day means ~40 per hour. As the weather forecast changes slowly
+// the example requests the forecast every 2 minutes, so adapting to reduce memory
 // by requesting current, daily, hourly etc forescasts individually can be done.
 
 // The content is zero or "" when first created.
@@ -22,23 +22,34 @@ typedef struct OW_current {
   uint32_t sunset = 0;
   float    temp = 0;
   float    feels_like = 0;
-  float    pressure = 0;
+  uint16_t pressure = 0;
   uint8_t  humidity = 0;
-  float    dew_point = 0;
   uint8_t  clouds = 0;
-  float    uvi = 0;
   uint32_t visibility = 0;
   float    wind_speed = 0;
   float    wind_gust = 0;
   uint16_t wind_deg = 0;
-  float    rain = 0;
-  float    snow = 0;
-
-  // current.weather
   uint16_t id = 0;
   String   main;
   String   description;
   String   icon;
+
+  // only onecall API
+  float    dew_point = 0;
+  float    uvi = 0;
+
+  // only current API
+  uint32_t city_id = 0;
+  String   city_name;
+  String   country;
+  float    rain = 0;
+  float    snow = 0;
+  float    rain_3h = 0;
+  float    snow_3h = 0;
+  float    temp_min = 0;
+  float    temp_max = 0;
+  uint16_t sea_level = 0;
+  uint16_t grnd_level = 0;
 
 } OW_current;
 
