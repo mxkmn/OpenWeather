@@ -42,7 +42,7 @@
 #define longitude     "86.9250" // 180.000 to -180.000 negative for West
 
 #define units         "metric"  // or "imperial"
-#define language      "en"   // See notes tab
+#define language      "en"      // See notes tab
 
 // =========  User configured stuff ends here  =========
 // =====================================================
