@@ -8,6 +8,7 @@
 
 #ifdef ESP8266
   #include <ESP8266WiFi.h>
+  BearSSL::WiFiClientSecure client;
 #else
   #include <WiFi.h>
 #endif
@@ -33,11 +34,17 @@
 // Pass a nullptr for current, hourly or daily pointers to exclude in response.
 bool OW_Weather::getForecast(OW_current *current, OW_hourly *hourly, OW_daily *daily,
                              String api_key, String latitude, String longitude,
-                             String units, String language) {
+                             String units, String language, String api_type) {
 
   data_set = "";
   hourly_index = 0;
   daily_index = 0;
+
+  if (api_type == "onecall") api_id = 1;
+  else if (api_type == "current") {
+    api_id = 2;
+    api_type = "weather"; // Changing the type from human-understandable ("current") to OWT-understandable ("weather")
+  }
 
   // Local copies of structure pointers, the structures are filled during parsing
   this->current  = current;
@@ -48,9 +55,9 @@ bool OW_Weather::getForecast(OW_current *current, OW_hourly *hourly, OW_daily *d
   String exclude = "";
   if (!current)  exclude += "current,";
   if (!hourly)   exclude += "hourly,";
-  if (!daily)    exclude += "daily,";
+  if (!daily)    exclude += "daily";
 
-  String url = "https://api.openweathermap.org/data/2.5/onecall?lat=" + latitude + "&lon=" + longitude + "&exclude=minutely," + exclude + "&units=" + units + "&lang=" + language + "&appid=" + api_key;
+  String url = "https://api.openweathermap.org/data/2.5/" + api_type + "?lat=" + latitude + "&lon=" + longitude + "&exclude=minutely,alerts," + exclude + "&units=" + units + "&lang=" + language + "&appid=" + api_key;
 
   // Send GET request and feed the parser
   bool result = parseRequest(url);
@@ -72,18 +79,22 @@ void OW_Weather::partialDataSet(bool partialSet) {
   this->partialSet = partialSet;
 }
 
-#ifdef ESP32 // Decide if ESP32 or ESP8266 parseRequest available
-
 /***************************************************************************************
-** Function name:           parseRequest (for ESP32)
+** Function name:           parseRequest
 ** Description:             Fetches the JSON message and feeds to the parser
 ***************************************************************************************/
 bool OW_Weather::parseRequest(String url) {
 
   uint32_t dt = millis();
 
+#ifdef ESP32
   WiFiClientSecure client;
+#endif
 
+#ifdef ESP8266
+  client.setInsecure();
+#endif
+  
   JSON_Decoder parser;
   parser.setListener(this);
 
@@ -91,7 +102,9 @@ bool OW_Weather::parseRequest(String url) {
 
   if (!client.connect(host, 443))
   {
+#ifdef LOG_ERRORS
     Serial.println("Connection failed.");
+#endif
     return false;
   }
 
@@ -102,16 +115,25 @@ bool OW_Weather::parseRequest(String url) {
 #ifdef SHOW_JSON
   int ccount = 0;
 #endif
+
   // Send GET request
-  Serial.println("\nSending GET request to api.openweathermap.org...");
+#ifdef LOG_UNNECESSARY_INFO
+  Serial.println("Sending GET request to api.openweathermap.org...");
+#endif
   client.print(String("GET ") + url + " HTTP/1.1\r\n" + "Host: " + host + "\r\n" + "Connection: close\r\n\r\n");
 
   // Pull out any header, X-Forecast-API-Calls: reports current daily API call count
+#ifdef ESP8266
+  while (client.available() || client.connected())
+#else
   while (client.connected())
+#endif
   {
     String line = client.readStringUntil('\n');
     if (line == "\r") {
+#ifdef LOG_UNNECESSARY_INFO
       Serial.println("Header end found");
+#endif
       break;
     }
 
@@ -121,21 +143,31 @@ bool OW_Weather::parseRequest(String url) {
 
     if ((millis() - timeout) > 5000UL)
     {
+#ifdef LOG_ERRORS
       Serial.println ("HTTP header timeout");
+#endif
       client.stop();
       return false;
     }
   }
-
-  Serial.println("\nParsing JSON");
-
+#ifdef LOG_UNNECESSARY_INFO
+  Serial.println("Parsing JSON");
+#endif
+  
   // Parse the JSON data, available() includes yields
-  while ( client.available() > 0 || client.connected())
+#ifdef ESP8266
+  while (client.available() || client.connected())
   {
-    while(client.available() > 0)
+    while (client.available())
+#else
+  while (client.available() > 0 || client.connected())
+  {
+    while (client.available() > 0)
+#endif
     {
       c = client.read();
       parser.parse(c);
+
 #ifdef SHOW_JSON
       if (c == '{' || c == '[' || c == '}' || c == ']') Serial.println();
       Serial.print(c); if (ccount++ > 100 && c == ',') {ccount = 0; Serial.println();}
@@ -143,109 +175,22 @@ bool OW_Weather::parseRequest(String url) {
 
       if ((millis() - timeout) > 8000UL)
       {
+#ifdef LOG_ERRORS
         Serial.println ("JSON parse client timeout");
+#endif
         parser.reset();
         client.stop();
         return false;
       }
+#ifdef ESP32
       yield();
-    }
-  }
-
-  Serial.println("");
-  Serial.print("Done in "); Serial.print(millis()-dt); Serial.println(" ms\n");
-
-  parser.reset();
-
-  client.stop();
-  
-  // A message has been parsed but the data-point correctness is unknown
-  return parseOK;
-}
-
-#else // ESP8266 version
-
-/***************************************************************************************
-** Function name:           parseRequest (for ESP8266)
-** Description:             Fetches the JSON message and feeds to the parser
-***************************************************************************************/
-bool OW_Weather::parseRequest(String url) {
-
-  uint32_t dt = millis();
-
-  // Must use namespace:: to select BearSSL
-  BearSSL::WiFiClientSecure client;
-
-  client.setInsecure();
-
-  JSON_Decoder parser;
-  parser.setListener(this);
-
-  const char*  host = "api.openweathermap.org";
-
-  if (!client.connect(host, 443))
-  {
-    Serial.println("Connection failed.");
-    return false;
-  }
-
-  uint32_t timeout = millis();
-  char c = 0;
-  parseOK = false;
-
-#ifdef SHOW_JSON
-  int ccount = 0;
 #endif
-
-  // Send GET request
-  Serial.println("Sending GET request to api.openweathermap.org...");
-  client.print(String("GET ") + url + " HTTP/1.1\r\n" + "Host: " + host + "\r\n" + "Connection: close\r\n\r\n");
-
-  // Pull out any header, X-Forecast-API-Calls: reports current daily API call count
-  while (client.available() || client.connected())
-  {
-    String line = client.readStringUntil('\n');
-    if (line == "\r") {
-      Serial.println("Header end found");
-      break;
-    }
-
-    Serial.println(line);
-
-    if ((millis() - timeout) > 5000UL)
-    {
-      Serial.println ("HTTP header timeout");
-      client.stop();
-      return false;
     }
   }
 
-  Serial.println("Parsing JSON");
-  
-  // Parse the JSON data, available() includes yields
-  while (client.available() || client.connected())
-  {
-    while (client.available())
-    {
-      c = client.read();
-      parser.parse(c);
-  #ifdef SHOW_JSON
-      if (c == '{' || c == '[' || c == '}' || c == ']') Serial.println();
-      Serial.print(c); if (ccount++ > 100 && c == ',') {ccount = 0; Serial.println();}
-  #endif
-    }
-
-    if ((millis() - timeout) > 8000UL)
-    {
-      Serial.println ("JSON client timeout");
-      parser.reset();
-      client.stop();
-      return false;
-    }
-  }
-
-  Serial.println("");
-  Serial.print("Done in "); Serial.print(millis()-dt); Serial.println(" ms\n");
+#ifdef LOG_UNNECESSARY_INFO
+  Serial.print("Done in "); Serial.print(millis()-dt); Serial.println(" ms");
+#endif
 
   parser.reset();
 
@@ -254,8 +199,6 @@ bool OW_Weather::parseRequest(String url) {
   // A message has been parsed without error but the data-point correctness is unknown
   return parseOK;
 }
-
-#endif // ESP32 or ESP8266 parseRequest
 
 /***************************************************************************************
 ** Function name:           key etc
@@ -272,7 +215,7 @@ void OW_Weather::key(const char *key) {
 
 void OW_Weather::startDocument() {
 
-  currentParent = currentKey =   currentSet = "";
+  currentParent = currentKey = currentSet = "";
   objectLevel = 0;
   valuePath = "";
   arrayIndex = 0;
@@ -365,175 +308,288 @@ void OW_Weather::value(const char *val)
 ***************************************************************************************/
 void OW_Weather::fullDataSet(const char *val) {
 
-   String value = val;
+  String value = val;
 
-  // Start of JSON
-  if (currentParent == "") {
-    if (currentKey == "lat") lat = value.toFloat();
-    if (currentKey == "lon") lon = value.toFloat();
-    if (currentKey == "timezone") timezone = value;
-  }
-
-  // Current forecast - no array index - short path
-  if (currentParent == "current") {
-    data_set = "current";
-    if (currentKey == "dt") current->dt = (uint32_t)value.toInt();
-    else
-    if (currentKey == "sunrise") current->sunrise = (uint32_t)value.toInt();
-    else
-    if (currentKey == "sunset") current->sunset = (uint32_t)value.toInt();
-    else
-    if (currentKey == "temp") current->temp = value.toFloat();
-    else
-    if (currentKey == "feels_like") current->feels_like = value.toFloat();
-    else
-    if (currentKey == "pressure") current->pressure = value.toFloat();
-    else
-    if (currentKey == "humidity") current->humidity = value.toInt();
-    else
-    if (currentKey == "dew_point") current->dew_point = value.toFloat();
-    else
-    if (currentKey == "uvi") current->uvi = value.toFloat();
-    else
-    if (currentKey == "clouds") current->clouds = value.toInt();
-    else
-    if (currentKey == "visibility") current->visibility = value.toInt();
-    else
-    if (currentKey == "wind_speed") current->wind_speed = value.toFloat();
-    else
-    if (currentKey == "wind_gust") current->wind_gust = value.toFloat();
-    else
-    if (currentKey == "wind_deg") current->wind_deg = (uint16_t)value.toInt();
-    else
-    if (currentKey == "rain") current->rain = value.toFloat();
-    else
-    if (currentKey == "snow") current->snow = value.toFloat();
-    else
-
-    if (currentKey == "id") current->id = value.toInt();
-    else
-    if (currentKey == "main") current->main = value;
-    else
-    if (currentKey == "description") current->description = value;
-    else
-    if (currentKey == "icon") current->icon = value;
-
-    return;
-  }
-
-  // Hourly forecast
-  if (currentParent == "hourly") {
-    data_set = "hourly";
-    
-    if (arrayIndex >= MAX_HOURS) return;
-    
-    if (currentKey == "dt") hourly->dt[arrayIndex] = (uint32_t)value.toInt();
-    else
-    if (currentKey == "temp") hourly->temp[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "feels_like") hourly->feels_like[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "pressure") hourly->pressure[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "humidity") hourly->humidity[arrayIndex] = value.toInt();
-    else
-    if (currentKey == "dew_point") hourly->dew_point[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "clouds") hourly->clouds[arrayIndex] = value.toInt();
-    else
-    if (currentKey == "wind_speed") hourly->wind_speed[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "wind_gust") hourly->wind_gust[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "wind_deg") hourly->wind_deg[arrayIndex] = (uint16_t)value.toInt();
-    else
-    if (currentKey == "rain") hourly->rain[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "snow") hourly->snow[arrayIndex] = value.toFloat();
-    else
-
-    if (currentKey == "id") hourly->id[arrayIndex] = value.toInt();
-    else
-    if (currentKey == "main") hourly->main[arrayIndex] = value;
-    else
-    if (currentKey == "description") hourly->description[arrayIndex] = value;
-    else
-    if (currentKey == "icon") hourly->icon[arrayIndex] = value;
-    else
-    if (currentKey == "pop") hourly->pop[arrayIndex] = value.toFloat();
-
-    return;
-  }
-
-
-  // Daily forecast
-  if (currentParent == "daily") {
-    data_set = "daily";
-    
-    if (arrayIndex >= MAX_DAYS) return;
-    
-    if (currentKey == "dt") daily->dt[arrayIndex] = (uint32_t)value.toInt();
-    else
-    if (currentKey == "sunrise") daily->sunrise[arrayIndex] = (uint32_t)value.toInt();
-    else
-    if (currentKey == "sunset") daily->sunset[arrayIndex] = (uint32_t)value.toInt();
-    else
-    if (currentKey == "pressure") daily->pressure[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "humidity") daily->humidity[arrayIndex] = value.toInt();
-    else
-    if (currentKey == "dew_point") daily->dew_point[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "clouds") daily->clouds[arrayIndex] = value.toInt();
-    else
-    if (currentKey == "wind_speed") daily->wind_speed[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "wind_gust") daily->wind_gust[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "wind_deg") daily->wind_deg[arrayIndex] = (uint16_t)value.toInt();
-    else
-    if (currentKey == "rain") daily->rain[arrayIndex] = value.toFloat();
-    else
-    if (currentKey == "snow") daily->snow[arrayIndex] = value.toFloat();
-    else
-
-    if (currentKey == "id") daily->id[arrayIndex] = value.toInt();
-    else
-    if (currentKey == "main") daily->main[arrayIndex] = value;
-    else
-    if (currentKey == "description") daily->description[arrayIndex] = value;
-    else
-    if (currentKey == "icon") daily->icon[arrayIndex] = value;
-    else
-    if (currentKey == "pop") daily->pop[arrayIndex] = value.toFloat();
-
-    if (currentSet == "temp") {
-      if (currentKey == "morn") daily->temp_morn[arrayIndex] = value.toFloat();
+  if (api_id == 1) // OneCall
+  {
+    // Start of JSON
+    if (currentParent == "") {
+      if (currentKey == "lat") lat = value.toFloat();
       else
-      if (currentKey == "day") daily->temp_day[arrayIndex] = value.toFloat();
+      if (currentKey == "lon") lon = value.toFloat();
       else
-      if (currentKey == "eve") daily->temp_eve[arrayIndex] = value.toFloat();
+      if (currentKey == "timezone") timezone = value;
       else
-      if (currentKey == "night") daily->temp_night[arrayIndex] = value.toFloat();
-      else
-      if (currentKey == "min") daily->temp_min[arrayIndex] = value.toFloat();
-      else
-      if (currentKey == "max") daily->temp_max[arrayIndex] = value.toFloat();
+      if (currentKey == "timezone_offset") timezone_offset = (uint32_t)value.toInt();
     }
 
-    if (currentSet == "feels_like") {
-      if (currentKey == "morn") daily->feels_like_morn[arrayIndex] = value.toFloat();
+    // Current forecast - no array index - short path
+    if (currentParent == "current") {
+      data_set = "current";
+      if (currentKey == "dt") current->dt = (uint32_t)value.toInt();
       else
-      if (currentKey == "day") daily->feels_like_day[arrayIndex] = value.toFloat();
+      if (currentKey == "sunrise") current->sunrise = (uint32_t)value.toInt();
       else
-      if (currentKey == "eve") daily->feels_like_eve[arrayIndex] = value.toFloat();
+      if (currentKey == "sunset") current->sunset = (uint32_t)value.toInt();
       else
-      if (currentKey == "night") daily->feels_like_night[arrayIndex] = value.toFloat();
+      if (currentKey == "temp") current->temp = value.toFloat();
+      else
+      if (currentKey == "feels_like") current->feels_like = value.toFloat();
+      else
+      if (currentKey == "pressure") current->pressure = value.toFloat();
+      else
+      if (currentKey == "humidity") current->humidity = value.toInt();
+      else
+      if (currentKey == "dew_point") current->dew_point = value.toFloat();
+      else
+      if (currentKey == "uvi") current->uvi = value.toFloat();
+      else
+      if (currentKey == "clouds") current->clouds = value.toInt();
+      else
+      if (currentKey == "visibility") current->visibility = value.toInt();
+      else
+      if (currentKey == "wind_speed") current->wind_speed = value.toFloat();
+      else
+      if (currentKey == "wind_gust") current->wind_gust = value.toFloat();
+      else
+      if (currentKey == "wind_deg") current->wind_deg = (uint16_t)value.toInt();
+      else /*
+      if (currentKey == "rain") current->rain = value.toFloat(); // It won't work because the full way is current.rain.1h, not current.rain
+      else
+      if (currentKey == "snow") current->snow = value.toFloat(); // It won't work because the full way is current.snow.1h, not current.snow
+      else */
+
+      if (currentKey == "id") current->id = value.toInt();
+      else
+      if (currentKey == "main") current->main = value;
+      else
+      if (currentKey == "description") current->description = value;
+      else
+      if (currentKey == "icon") current->icon = value;
+
+      return;
     }
 
-    return;
-  }
+    // Hourly forecast
+    if (currentParent == "hourly") {
+      data_set = "hourly";
+      
+      if (arrayIndex >= MAX_HOURS) return;
+      
+      if (currentKey == "dt") hourly->dt[arrayIndex] = (uint32_t)value.toInt();
+      else
+      if (currentKey == "temp") hourly->temp[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "feels_like") hourly->feels_like[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "pressure") hourly->pressure[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "humidity") hourly->humidity[arrayIndex] = value.toInt();
+      else
+      if (currentKey == "dew_point") hourly->dew_point[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "clouds") hourly->clouds[arrayIndex] = value.toInt();
+      else
+      if (currentKey == "wind_speed") hourly->wind_speed[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "wind_gust") hourly->wind_gust[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "wind_deg") hourly->wind_deg[arrayIndex] = (uint16_t)value.toInt();
+      else
+      if (currentKey == "rain") hourly->rain[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "snow") hourly->snow[arrayIndex] = value.toFloat();
+      else
 
+      if (currentKey == "id") hourly->id[arrayIndex] = value.toInt();
+      else
+      if (currentKey == "main") hourly->main[arrayIndex] = value;
+      else
+      if (currentKey == "description") hourly->description[arrayIndex] = value;
+      else
+      if (currentKey == "icon") hourly->icon[arrayIndex] = value;
+      else
+      if (currentKey == "pop") hourly->pop[arrayIndex] = value.toFloat();
+
+      return;
+    }
+
+
+    // Daily forecast
+    if (currentParent == "daily") {
+      data_set = "daily";
+      
+      if (arrayIndex >= MAX_DAYS) return;
+      
+      if (currentKey == "dt") daily->dt[arrayIndex] = (uint32_t)value.toInt();
+      else
+      if (currentKey == "sunrise") daily->sunrise[arrayIndex] = (uint32_t)value.toInt();
+      else
+      if (currentKey == "sunset") daily->sunset[arrayIndex] = (uint32_t)value.toInt();
+      else
+      if (currentKey == "pressure") daily->pressure[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "humidity") daily->humidity[arrayIndex] = value.toInt();
+      else
+      if (currentKey == "dew_point") daily->dew_point[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "clouds") daily->clouds[arrayIndex] = value.toInt();
+      else
+      if (currentKey == "wind_speed") daily->wind_speed[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "wind_gust") daily->wind_gust[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "wind_deg") daily->wind_deg[arrayIndex] = (uint16_t)value.toInt();
+      else
+      if (currentKey == "rain") daily->rain[arrayIndex] = value.toFloat();
+      else
+      if (currentKey == "snow") daily->snow[arrayIndex] = value.toFloat();
+      else
+
+      if (currentKey == "id") daily->id[arrayIndex] = value.toInt();
+      else
+      if (currentKey == "main") daily->main[arrayIndex] = value;
+      else
+      if (currentKey == "description") daily->description[arrayIndex] = value;
+      else
+      if (currentKey == "icon") daily->icon[arrayIndex] = value;
+      else
+      if (currentKey == "pop") daily->pop[arrayIndex] = value.toFloat();
+
+      if (currentSet == "temp") {
+        if (currentKey == "morn") daily->temp_morn[arrayIndex] = value.toFloat();
+        else
+        if (currentKey == "day") daily->temp_day[arrayIndex] = value.toFloat();
+        else
+        if (currentKey == "eve") daily->temp_eve[arrayIndex] = value.toFloat();
+        else
+        if (currentKey == "night") daily->temp_night[arrayIndex] = value.toFloat();
+        else
+        if (currentKey == "min") daily->temp_min[arrayIndex] = value.toFloat();
+        else
+        if (currentKey == "max") daily->temp_max[arrayIndex] = value.toFloat();
+      }
+
+      if (currentSet == "feels_like") {
+        if (currentKey == "morn") daily->feels_like_morn[arrayIndex] = value.toFloat();
+        else
+        if (currentKey == "day") daily->feels_like_day[arrayIndex] = value.toFloat();
+        else
+        if (currentKey == "eve") daily->feels_like_eve[arrayIndex] = value.toFloat();
+        else
+        if (currentKey == "night") daily->feels_like_night[arrayIndex] = value.toFloat();
+      }
+
+      return;
+    }
+  }
+  else if (api_id == 2) // Current
+  {
+    // Start of JSON
+    if (currentParent == "") {
+      if (currentKey == "visibility") current->visibility = value.toInt();
+      else
+      if (currentKey == "dt") current->dt = (uint32_t)value.toInt();
+      else
+      if (currentKey == "timezone") timezone_offset = (uint32_t)value.toInt();
+      else
+      if (currentKey == "id") current->city_id = (uint32_t)value.toInt();
+      else
+      if (currentKey == "name") current->city_name = value;
+      
+      return;
+    }
+    else if (currentParent == "coord") {
+      data_set = "coord";
+
+      if (currentKey == "lat") lat = value.toFloat();
+      else
+      if (currentKey == "lon") lon = value.toFloat();
+
+      return;
+    }
+    else if (currentParent == "weather") {
+      data_set = "weather";
+
+      if (currentKey == "id") current->id = value.toInt();
+      else
+      if (currentKey == "main") current->main = value;
+      else
+      if (currentKey == "description") current->description = value;
+      else
+      if (currentKey == "icon") current->icon = value;
+
+      return;
+    }
+    else if (currentParent == "main") {
+      data_set = "main";
+
+      if (currentKey == "temp") current->temp = value.toFloat();
+      else
+      if (currentKey == "feels_like") current->feels_like = value.toFloat();
+      else
+      if (currentKey == "pressure") current->pressure = value.toFloat();
+      else
+      if (currentKey == "humidity") current->humidity = value.toInt();
+      else
+      if (currentKey == "temp_min") current->temp_min = value.toFloat();
+      else
+      if (currentKey == "temp_max") current->temp_max = value.toFloat();
+      else
+      if (currentKey == "sea_level") current->sea_level = value.toInt();
+      else
+      if (currentKey == "grnd_level") current->grnd_level = value.toInt();
+
+      return;
+    }
+    else if (currentParent == "wind") {
+      data_set = "wind";
+
+      if (currentKey == "speed") current->wind_speed = value.toFloat();
+      else
+      if (currentKey == "deg") current->wind_deg = (uint16_t)value.toInt();
+      else
+      if (currentKey == "wind_gust") current->wind_gust = value.toFloat();
+
+      return;
+    }
+    else if (currentParent == "clouds") {
+      data_set = "clouds";
+
+      if (currentKey == "clouds") current->clouds = value.toInt();
+
+      return;
+    }
+    else if (currentParent == "rain") {
+      data_set = "rain";
+
+      if (currentKey == "1h") current->rain = value.toFloat();
+      else
+      if (currentKey == "3h") current->rain_3h = value.toFloat();
+
+      return;
+    }
+    else if (currentParent == "snow") {
+      data_set = "snow";
+
+      if (currentKey == "1h") current->snow = value.toFloat();
+      else
+      if (currentKey == "3h") current->snow_3h = value.toFloat();
+
+      return;
+    }
+    else if (currentParent == "sys") {
+      data_set = "sys";
+
+      if (currentKey == "sunrise") current->sunrise = (uint32_t)value.toInt();
+      else
+      if (currentKey == "sunset") current->sunset = (uint32_t)value.toInt();
+      else
+      if (currentKey == "country") current->country = value;
+
+      return;
+    }
+  }
 }
 
 /***************************************************************************************
@@ -700,5 +756,4 @@ void OW_Weather::partialDataSet(const char *val) {
 
     return;
   }
-
 }
