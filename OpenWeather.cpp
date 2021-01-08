@@ -6,10 +6,14 @@
 
 // See license.txt in root folder of library
 
+#define SECURE_CONNECTION // Define if you want to use HTTPS instead of HTTP for security (3x slower)
+
 #ifdef ESP8266
   #include <ESP8266WiFi.h>
-  BearSSL::WiFiClientSecure client;
-#else
+  #ifdef SECURE_CONNECTION
+    BearSSL::WiFiClientSecure client;
+  #endif
+#else // ESP32
   #include <WiFi.h>
 #endif
 
@@ -18,7 +22,6 @@
 // The streaming parser to use is not the Arduino IDE library manager default,
 // but this one which is slightly different and renamed to avoid conflicts:
 // https://github.com/Bodmer/JSON_Decoder
-
 
 #include <JSON_Listener.h>
 #include <JSON_Decoder.h>
@@ -47,9 +50,9 @@ bool OW_Weather::getForecast(OW_current *current, OW_hourly *hourly, OW_daily *d
   }
 
   // Local copies of structure pointers, the structures are filled during parsing
-  this->current  = current;
-  this->hourly   = hourly;
-  this->daily    = daily;
+  this->current = current;
+  this->hourly  = hourly;
+  this->daily   = daily;
 
   // Exclude some info by passing fn a NULL pointer to reduce memory needed
   String exclude = "";
@@ -63,9 +66,9 @@ bool OW_Weather::getForecast(OW_current *current, OW_hourly *hourly, OW_daily *d
   bool result = parseRequest(url);
 
   // Null out pointers to prevent crashes
-  this->current  = nullptr;
-  this->hourly   = nullptr;
-  this->daily    = nullptr;
+  this->current = nullptr;
+  this->hourly  = nullptr;
+  this->daily   = nullptr;
 
   return result;
 }
@@ -75,7 +78,6 @@ bool OW_Weather::getForecast(OW_current *current, OW_hourly *hourly, OW_daily *d
 ** Description:             Set requested data set to partial (true) or full (false)
 ***************************************************************************************/
 void OW_Weather::partialDataSet(bool partialSet) {
-  
   this->partialSet = partialSet;
 }
 
@@ -87,20 +89,28 @@ bool OW_Weather::parseRequest(String url) {
 
   uint32_t dt = millis();
 
-#ifdef ESP32
-  WiFiClientSecure client;
+#ifdef SECURE_CONNECTION
+  #ifdef ESP32
+    WiFiClientSecure client;
+  #endif
+
+  #ifdef ESP8266
+    client.setInsecure();
+  #endif
+#else
+  WiFiClient client;
 #endif
 
-#ifdef ESP8266
-  client.setInsecure();
-#endif
-  
   JSON_Decoder parser;
   parser.setListener(this);
 
-  const char*  host = "api.openweathermap.org";
+  const char* host = "api.openweathermap.org";
 
+#ifdef SECURE_CONNECTION
   if (!client.connect(host, 443))
+#else
+ if (!client.connect(host, 80))
+#endif
   {
 #ifdef LOG_ERRORS
     Serial.println("Connection failed.");
